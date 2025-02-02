@@ -34,7 +34,6 @@ async function main() {
   // 1) Derive the uncompressed public key from xpub
   // --------------------------------------------------
 
-
   // Replace with your actual xpub from Fordefi
   const xpub = 'xpub661MyMwAqRbcFCvjYemPD3f6o3da15jDYLgW9PzyJv6RJN7uwraUpXoXUGqWQs8xWVtqetvFF4AkW1NnHrPWCf1KQoxGSDbFuAbbr5uFBUg';
 
@@ -49,11 +48,11 @@ async function main() {
   const ec = new EC('secp256k1');
   const key = ec.keyFromPublic(compressedPubKey);
   const uncompressedHex = key.getPublic(false, 'hex'); // false => uncompressed
-  // uncompressedHex should start with '04' and be 130 hex chars total => 65 bytes
 
   // 1d) Convert to Buffer => base64url
   const pubBytes = Buffer.from(uncompressedHex, 'hex'); // length 65
   const ownerB64Url = toBase64Url(pubBytes);
+
 
   // --------------------------------------------------
   // 2) Create an Arweave transaction
@@ -65,10 +64,10 @@ async function main() {
   });
 
   // 2a) Create transaction skeleton
-  // This transaction sends 10.5 AR to the target address, with NO data attached
+  // This transaction sends 1 AR to the target address
   const transaction = await arweave.createTransaction({
-    target: '1seRanklLU_1VTGkEk7P0xAwMJfA7owA1JHW5KyZKlY',
-    quantity: arweave.ar.arToWinston('10.5'),
+    target: 'r4IUcaIB-mYX6-SZ202azgfBVeayjaJU8-LRXto_ki4', // Binance address
+    quantity: arweave.ar.arToWinston('0.1'),
   });
 
   // 2b) Set the "owner" field to your uncompressed public key
@@ -76,13 +75,10 @@ async function main() {
 
   // --------------------------------------------------
   // 3) Prepare chunks & get signature data
-  //    We pass an empty Uint8Array since we have no data.
-  //    (In many Arweave SDK versions, you can omit this entirely,
-  //     but if your version *requires* data to be passed, do so.)
   // --------------------------------------------------
   await transaction.prepareChunks(new Uint8Array());
 
-  // “Signature data” is the exact bytes that must be signed
+  // “Signature data” is the exact bytes that must be signed, it comes as a data buffer
   const signatureData = await transaction.getSignatureData();
 
   // --------------------------------------------------
@@ -103,16 +99,15 @@ async function main() {
   // Example call to Fordefi's black-box signature endpoint:
   const response = await createAndSignTx(pathEndpoint, accessToken, signature, timestamp, requestBody)
   const fordDefiResult = await response.data;
-
-  // Suppose 'fordDefiResult.signature' contains a base64-encoded 64-byte signature
-  if (!fordDefiResult.signature) {
+  console.log(fordDefiResult)
+  if (!fordDefiResult.signatures[0]) {
     throw new Error('Signature not returned from Fordefi!');
   }
 
   // --------------------------------------------------
   // 5) Attach signature & compute transaction ID
   // --------------------------------------------------
-  const rawSignature = Buffer.from(fordDefiResult.signature, 'base64');
+  const rawSignature = Buffer.from(fordDefiResult.signatures[0], 'base64');
   transaction.signature = toBase64Url(rawSignature);
 
   // For Arweave, tx.id = SHA-256 of the raw signature

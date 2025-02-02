@@ -58,3 +58,4 @@ arweave.wallets.ownerToAddress(ownerB64Url)
 
 // npx ts-node src/derive_address.ts
 // address -> 7rWpjRp-Mu--cgv6_lpRkgfQC72UH-4pPpUP0hKUG08
+// https://viewblock.io/arweave/address/7rWpjRp-Mu--cgv6_lpRkgfQC72UH-4pPpUP0hKUG08
