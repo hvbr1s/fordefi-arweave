@@ -1,0 +1,5 @@
+.env
+package-lock.json
+.DS_Store
+node_modules
+src/fordefi_secret/*
