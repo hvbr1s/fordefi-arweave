@@ -1,35 +1,31 @@
 import Arweave from 'arweave';
 import { ec as EC } from 'elliptic';
-import BIP32Factory from 'bip32';
-import * as ecc from 'tiny-secp256k1';
+import { Buffer } from 'buffer';
 
-// Initialize Arweave
+// 1) Initialize Arweave
 const arweave = Arweave.init({
   host: 'arweave.net',
   port: 443,
   protocol: 'https'
 });
 
-const bip32 = BIP32Factory(ecc);
+// 2) The base64-encoded compressed public key
+//    Example: "A4VJoRMaNKQd1bvKbjxl/xbcBH5dWooJ0v/QX/5K2tHE"
+const compressedBase64 = "A4VJoRMaNKQd1bvKbjxl/xbcBH5dWooJ0v/QX/5K2tHE";
 
-// Fordefi Black-box Vault xpub
-const xpub = "xpub661MyMwAqRbcFCvjYemPD3f6o3da15jDYLgW9PzyJv6RJN7uwraUpXoXUGqWQs8xWVtqetvFF4AkW1NnHrPWCf1KQoxGSDbFuAbbr5uFBUg";
+// 3) Decode base64 -> Buffer (33 bytes for a secp256k1 compressed key)
+const compressedKeyBuf = Buffer.from(compressedBase64, 'base64');
 
-// 1. Derive the child *public key*.
-const node = bip32.fromBase58(xpub);
-const childNode = node.derive(0);
-const compressedPubKey = childNode.publicKey;
-
-// 2. Decompress it with 'elliptic'.
+// 4) Decompress it with 'elliptic'.
 const ec = new EC('secp256k1');
-const key = ec.keyFromPublic(compressedPubKey);
-const uncompressedPoint = key.getPublic(false, 'hex');  // 'false' => uncompressed
-// `uncompressedPoint` is a hex string of length 130 (0x04 + 64 bytes)
+const key = ec.keyFromPublic(compressedKeyBuf);
+const uncompressedHex = key.getPublic(false, 'hex');  // 'false' => uncompressed
+// `uncompressedHex` is a hex string of length 130 (1 byte prefix + 64 bytes)
 
-// 3. Convert to a Uint8Array (or Buffer).
-const pubBytes = Buffer.from(uncompressedPoint, 'hex'); // length 65
+// 5) Convert the uncompressed key to a Uint8Array (or Buffer).
+const pubBytes = Buffer.from(uncompressedHex, 'hex'); // length 65
 
-// 4. Convert to base64url (Arweave’s “owner” format).
+// 6) Convert to base64url (Arweave “owner” format).
 function bufToB64Url(buf: Buffer) {
   return buf
     .toString('base64')
@@ -38,24 +34,21 @@ function bufToB64Url(buf: Buffer) {
     .replace(/=+$/, '');
 }
 const ownerB64Url = bufToB64Url(pubBytes);
+console.log("Owner ->", ownerB64Url);
 
-// 5. Finally, derive the address from the “owner”.
+// 7) Finally, derive the address from the “owner”.
 arweave.wallets.ownerToAddress(ownerB64Url)
   .then((address: string) => {
     console.log("Derived Arweave Address (public-only):", address);
-    
+
     // Get balance for the derived address
     return arweave.wallets.getBalance(address);
   })
   .then((balance) => {
-    let winston = balance;
-    let ar = arweave.ar.winstonToAr(balance);
+    const winston = balance;
+    const ar = arweave.ar.winstonToAr(winston);
 
     console.log("Balance in Winston:", winston);
     console.log("Balance in AR:", ar);
   })
   .catch(console.error);
-
-// npx ts-node src/derive_address.ts
-// address -> 7rWpjRp-Mu--cgv6_lpRkgfQC72UH-4pPpUP0hKUG08
-// https://viewblock.io/arweave/address/7rWpjRp-Mu--cgv6_lpRkgfQC72UH-4pPpUP0hKUG08
