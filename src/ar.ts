@@ -23,22 +23,22 @@ function toBase64Url(buf: Buffer): string {
 }
 
 async function main() {
+
   // --------------------------------------------------
   // 1) Start from a base64-encoded *compressed* pubkey fetched from Fordefi
   // --------------------------------------------------
+  // 1a) Decode the compressed pubkey from base64
   const compressedBase64 = "A4VJoRMaNKQd1bvKbjxl/xbcBH5dWooJ0v/QX/5K2tHE";
-  
-  // 1a) Decode from base64 into a 33-byte Buffer
   const compressedKeyBuf = Buffer.from(compressedBase64, 'base64');
 
-  // 1b) Decompress with elliptic
+  // 1b) Decompress the buffer using elliptic
   const ec = new EC('secp256k1');
-  const keyPair = ec.keyFromPublic(compressedKeyBuf);
-  const uncompressedHex = keyPair.getPublic(false, 'hex'); // false => uncompressed
-  console.log("Uncompressed PubKey (hex):", uncompressedHex);
+  const uncompressedArray = ec
+    .keyFromPublic(compressedKeyBuf)
+    .getPublic(false, 'array');
 
-  // 1c) Convert uncompressed hex -> Buffer -> base64url
-  const uncompressedBuf = Buffer.from(uncompressedHex, 'hex');
+  // 1c) Convert array -> Buffer -> base64url
+  const uncompressedBuf = Buffer.from(uncompressedArray);
   const ownerB64Url = toBase64Url(uncompressedBuf);
 
   // --------------------------------------------------
@@ -46,22 +46,31 @@ async function main() {
   // --------------------------------------------------
   // You can point to the default Arweave gateway OR a specific node:
   // Peer phonebook -> https://arweave.net/peers
+  // 38.70.220.163:1984
+  // const arweave = Arweave.init({
+  //   host: '183.221.217.178',
+  //   port: 1984,
+  //   protocol: 'http'
+  // });
+
+  // Arweave gateway
   const arweave = Arweave.init({
-    host: '38.70.220.163',
-    port: 1984,
-    protocol: 'http'
+    host: 'arweave.net',
+    port: 443,
+    protocol: 'https'
   });
 
   // 2a) Create transaction skeleton
   const transaction = await arweave.createTransaction({
     target: 'uDoYWDDVtPzE8_FM3Od1K7Rh3HfWrMAOjkLA5OZ3SZw', // Random address
-    quantity: arweave.ar.arToWinston('1'), // e.g., 1 AR
+    quantity: arweave.ar.arToWinston('0.01'), // e.g., 1 AR
   });
+  console.log(transaction)
 
   // 2b) Set the "owner" field to the uncompressed pubkey in base64url
   transaction.owner = ownerB64Url;
   // And specify the signature type for ECDSA secp256k1
-  transaction.signatureType = 2;
+  transaction.signatureType = 3;
 
   // --------------------------------------------------
   // 3) Get signature data
@@ -96,13 +105,16 @@ async function main() {
   // 5) Attach signature & compute transaction ID
   // --------------------------------------------------
   const rawSignature = Buffer.from(sig, 'base64');
+  console.log("Signature length =", rawSignature.length);
+  console.log("Signature hex =", rawSignature.toString('hex'));
 
   // Arweave wants signatures in base64url
+  console.log(`Signature before conversion to Base64url -> ${rawSignature}`)
   transaction.signature = toBase64Url(rawSignature);
 
   // For Arweave, tx.id = SHA-256 of the raw signature
   const sigHash = crypto.createHash('sha256').update(rawSignature).digest();
-  transaction.id = toBase64Url(sigHash);
+  transaction.id = toBase64Url(sigHash);  
 
   // --------------------------------------------------
   // 6) Post the fully signed transaction
