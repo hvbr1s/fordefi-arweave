@@ -46,19 +46,20 @@ async function main() {
   // --------------------------------------------------
   // You can point to the default Arweave gateway OR a specific node:
   // Peer phonebook -> https://arweave.net/peers
-  // 38.70.220.163:1984
-  // const arweave = Arweave.init({
-  //   host: '183.221.217.178',
-  //   port: 1984,
-  //   protocol: 'http'
-  // });
+  // 50.118.153.249:1984 -> runs a modern version of the Arweave client
+  // 185.218.6.105:2307
+  const arweave = Arweave.init({
+    host: '185.218.6.105',
+    port: 2307,
+    protocol: 'http'
+  });
 
   // Arweave gateway
-  const arweave = Arweave.init({
-    host: 'arweave.net',
-    port: 443,
-    protocol: 'https'
-  });
+  // const arweave = Arweave.init({
+  //   host: 'arweave.net',
+  //   port: 443,
+  //   protocol: 'https'
+  // });
 
   // 2a) Create transaction skeleton
   const transaction = await arweave.createTransaction({
@@ -69,8 +70,6 @@ async function main() {
 
   // 2b) Set the "owner" field to the uncompressed pubkey in base64url
   transaction.owner = ownerB64Url;
-  // And specify the signature type for ECDSA secp256k1
-  transaction.signatureType = 3;
 
   // --------------------------------------------------
   // 3) Get signature data
@@ -99,7 +98,6 @@ async function main() {
   if (!sig) {
     throw new Error('Signature not returned from Fordefi!');
   }
-  console.log("Signature from Fordefi:", sig);
 
   // --------------------------------------------------
   // 5) Attach signature & compute transaction ID
@@ -112,20 +110,16 @@ async function main() {
   console.log(`Signature before conversion to Base64url -> ${rawSignature}`)
   transaction.signature = toBase64Url(rawSignature);
 
-  // For Arweave, tx.id = SHA-256 of the raw signature
+  // For Arweave, tx.id = SHA-256 of the raw signature then in base64Url
   const sigHash = crypto.createHash('sha256').update(rawSignature).digest();
   transaction.id = toBase64Url(sigHash);  
 
   // --------------------------------------------------
   // 6) Post the fully signed transaction
   // --------------------------------------------------
-  const txObject = transaction.toJSON();
-  console.log("Arweave Transaction (JSON):", txObject);
 
-  // Convert JSON back into a Transaction object
-  const txParsed = arweave.transactions.fromRaw(txObject);
-
-  const postResponse = await arweave.transactions.post(txParsed);
+  console.log("Arweave Transaction (JSON):", transaction);
+  const postResponse = await arweave.transactions.post(transaction);
   if ([200, 202].includes(postResponse.status)) {
     console.log('Transaction posted successfully!');
     console.log('Transaction ID:', transaction.id);

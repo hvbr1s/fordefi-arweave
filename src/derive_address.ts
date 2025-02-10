@@ -9,8 +9,7 @@ const arweave = Arweave.init({
   protocol: 'https'
 });
 
-// 2) The base64-encoded compressed public key
-//    Example: "A4VJoRMaNKQd1bvKbjxl/xbcBH5dWooJ0v/QX/5K2tHE"
+// 2) The base64-encoded compressed public key from Fordefi
 const compressedBase64 = "A4VJoRMaNKQd1bvKbjxl/xbcBH5dWooJ0v/QX/5K2tHE";
 
 // 3) Decode base64 -> Buffer (33 bytes for a secp256k1 compressed key)
